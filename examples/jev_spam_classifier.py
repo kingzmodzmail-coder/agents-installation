@@ -1,28 +1,31 @@
-"""
-Example: Classify comments as spam using a decision model (inspired by Jev demos).
-Requires appropriate API access.
-"""
-import os
-from dotenv import load_dotenv
-import requests
+"""Real Jev spam classification demo; never deletes or hides comments."""
+import json
+from jev_client import ask_jev
 
-load_dotenv()
 
-def classify_spam(comment: str) -> dict:
-    # Placeholder for Jev/TypeSafe API call
-    # In practice, use the official SDK or endpoint for decision models
-    api_key = os.getenv("TYPESAFE_API_KEY")
-    if not api_key:
-        return {"error": "API key not set"}
-    
-    # Simulated response structure based on decision model outputs
-    # Real implementation would call the model endpoint
-    return {
-        "decision": "spam",
-        "confidence": 0.92,
-        "type": "null"  # yes/no style
-    }
+def classify_spam(comment):
+    if not isinstance(comment, str) or not comment.strip():
+        raise ValueError("comment must contain text")
+    response = ask_jev(comment, {"spam": {
+        "type": "noul",
+        "instructions": "Is this comment primarily unsolicited advertising, deceptive promotion, or repetitive spam?",
+        "criteria": {
+            "true": "Unsolicited advertising, repetitive promotion or deceptive solicitation",
+            "false": "A legitimate on-topic comment, including ordinary disagreement",
+        },
+    }})
+    answer = response["answers"]["spam"]
+    if answer.get("type") != "noul" or type(answer.get("noul")) not in (float, int):
+        raise ValueError("Malformed Jev noul answer")
+    probability = float(answer["noul"])
+    if not 0 <= probability <= 1:
+        raise ValueError("Spam probability out of range")
+    decision = "spam" if probability >= 0.8 else "not_spam" if probability <= 0.2 else "review"
+    return {"decision": decision, "spam_probability": probability, "model": response.get("model")}
+
 
 if __name__ == "__main__":
-    result = classify_spam("Check out this amazing product! Click here.")
-    print(result)
+    import sys
+    if len(sys.argv) < 2:
+        raise SystemExit('Usage: python -m examples.jev_spam_classifier "comment text"')
+    print(json.dumps(classify_spam(" ".join(sys.argv[1:])), indent=2))
