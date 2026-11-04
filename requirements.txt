@@ -1,0 +1,5 @@
+requests>=2.31.0
+python-dotenv>=1.0.0
+# Add provider-specific SDKs as needed, e.g.:
+# openai
+# typesafe-sdk  # if available
